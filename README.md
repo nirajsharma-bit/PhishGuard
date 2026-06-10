@@ -30,7 +30,7 @@ A Python-based security tool that analyzes any URL for phishing indicators and w
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/yourusername/PhishGuard.git
+git clone https://github.com/nirajsharma-bit/PhishGuard.git
 cd PhishGuard
 
 # 2. Create virtual environment
