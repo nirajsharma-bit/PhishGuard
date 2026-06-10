@@ -1,0 +1,1 @@
+# PhishGuard Scanner Package

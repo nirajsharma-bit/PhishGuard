@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PhishGuard — Phishing & Vulnerability Scanner</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2d45;
+    --accent: #00d4ff;
+    --accent2: #7c3aed;
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+    --safe: #10b981;
+    --low: #84cc16;
+    --medium: #f59e0b;
+    --high: #f97316;
+    --critical: #ef4444;
+    --font: 'Courier New', 'Cascadia Code', monospace;
+    --font-ui: system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+
+  .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 1rem;
+  }
+
+  .logo-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+  }
+
+  .logo-text {
+    font-size: 2rem;
+    font-weight: 700;
+    font-family: var(--font);
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -1px;
+  }
+
+  .tagline {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    font-family: var(--font);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  /* Input card */
+  .scan-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .scan-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+
+  .input-row {
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .url-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .url-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,212,255,0.1);
+  }
+
+  .url-input::placeholder { color: var(--text-muted); }
+
+  .scan-btn {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    padding: 14px 28px;
+    color: white;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    white-space: nowrap;
+    font-family: var(--font);
+    letter-spacing: 1px;
+  }
+
+  .scan-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .scan-btn:active { transform: translateY(0); }
+  .scan-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* Loading state */
+  .loading {
+    display: none;
+    text-align: center;
+    padding: 3rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    margin-bottom: 2rem;
+  }
+
+  .loading.active { display: block; }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1rem;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    color: var(--text-muted);
+    font-family: var(--font);
+    font-size: 0.9rem;
+  }
+
+  .loading-steps {
+    margin-top: 1rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-family: var(--font);
+  }
+
+  .loading-step { padding: 2px 0; transition: color 0.3s; }
+  .loading-step.done { color: var(--safe); }
+  .loading-step.active { color: var(--accent); }
+
+  /* Results */
+  .results { display: none; }
+  .results.active { display: block; }
+
+  /* Risk score card */
+  .risk-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .risk-badge {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-family: var(--font);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+  }
+
+  /* Circular meter */
+  .meter-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .meter-svg { transform: rotate(-90deg); }
+
+  .meter-bg { fill: none; stroke: var(--surface2); stroke-width: 10; }
+  .meter-fill {
+    fill: none;
+    stroke-width: 10;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1),
+                stroke 0.5s;
+  }
+
+  .meter-center {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+  }
+
+  .score-number {
+    font-size: 3.5rem;
+    font-weight: 700;
+    font-family: var(--font);
+    line-height: 1;
+  }
+
+  .score-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-family: var(--font);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .risk-description {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    max-width: 500px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* Module breakdown */
+  .module-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 1.5rem;
+  }
+
+  @media (max-width: 600px) { .module-grid { grid-template-columns: 1fr; } }
+
+  .module-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .module-bar-wrap {
+    flex: 1;
+  }
+
+  .module-name {
+    font-size: 0.85rem;
+    font-family: var(--font);
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .module-bar-bg {
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .module-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 1s cubic-bezier(.4,0,.2,1);
+  }
+
+  .module-score-text {
+    font-family: var(--font);
+    font-size: 1.2rem;
+    font-weight: 700;
+    min-width: 40px;
+    text-align: right;
+  }
+
+  /* Findings list */
+  .findings-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .findings-header {
+    padding: 1.2rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .findings-title {
+    font-family: var(--font);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+  }
+
+  .severity-pills {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .pill {
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: var(--font);
+  }
+
+  .finding-item {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    transition: background 0.15s;
+  }
+
+  .finding-item:last-child { border-bottom: none; }
+  .finding-item:hover { background: var(--surface2); }
+
+  .sev-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 5px;
+  }
+
+  .finding-content { flex: 1; }
+
+  .finding-check {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 3px;
+  }
+
+  .finding-detail {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  .finding-module {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-family: var(--font);
+    margin-top: 4px;
+    opacity: 0.6;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* Scanned URL display */
+  .scanned-url {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-family: var(--font);
+    font-size: 0.85rem;
+    color: var(--accent);
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .url-label {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+  }
+
+  .error-card {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    color: var(--critical);
+    font-family: var(--font);
+    font-size: 0.9rem;
+    display: none;
+  }
+
+  .error-card.active { display: block; }
+
+  /* Severity colors */
+  .sev-critical { color: var(--critical); }
+  .sev-high     { color: var(--high); }
+  .sev-medium   { color: var(--medium); }
+  .sev-low      { color: var(--low); }
+  .sev-safe     { color: var(--safe); }
+  .sev-info     { color: var(--text-muted); }
+
+  .bg-critical { background: var(--critical); }
+  .bg-high     { background: var(--high); }
+  .bg-medium   { background: var(--medium); }
+  .bg-low      { background: var(--low); }
+  .bg-safe     { background: var(--safe); }
+  .bg-info     { background: var(--text-muted); }
+
+  .pill-critical { background: rgba(239,68,68,0.15); color: var(--critical); }
+  .pill-high     { background: rgba(249,115,22,0.15); color: var(--high); }
+  .pill-medium   { background: rgba(245,158,11,0.15); color: var(--medium); }
+  .pill-low      { background: rgba(132,204,22,0.15); color: var(--low); }
+  .pill-safe     { background: rgba(16,185,129,0.15); color: var(--safe); }
+
+  .badge-safe     { background: rgba(16,185,129,0.15); color: var(--safe);     border: 1px solid rgba(16,185,129,0.3); }
+  .badge-low      { background: rgba(132,204,22,0.15); color: var(--low);      border: 1px solid rgba(132,204,22,0.3); }
+  .badge-medium   { background: rgba(245,158,11,0.15); color: var(--medium);   border: 1px solid rgba(245,158,11,0.3); }
+  .badge-high     { background: rgba(249,115,22,0.15); color: var(--high);     border: 1px solid rgba(249,115,22,0.3); }
+  .badge-critical { background: rgba(239,68,68,0.15);  color: var(--critical); border: 1px solid rgba(239,68,68,0.3); }
+
+  footer {
+    text-align: center;
+    margin-top: 3rem;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-family: var(--font);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">🛡️</div>
+      <span class="logo-text">PhishGuard</span>
+    </div>
+    <div class="tagline">Phishing Detection &amp; Vulnerability Scanner</div>
+  </div>
+
+  <!-- Scan Input -->
+  <div class="scan-card">
+    <div class="input-row">
+      <input
+        class="url-input"
+        type="text"
+        id="urlInput"
+        placeholder="Enter URL to scan — e.g. https://example.com"
+        autofocus
+      />
+      <button class="scan-btn" id="scanBtn" onclick="startScan()">SCAN →</button>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div class="error-card" id="errorCard"></div>
+
+  <!-- Loading -->
+  <div class="loading" id="loadingCard">
+    <div class="spinner"></div>
+    <div class="loading-text">Analyzing target...</div>
+    <div class="loading-steps" id="loadingSteps">
+      <div class="loading-step" id="step1">[ ] Resolving URL and domain info...</div>
+      <div class="loading-step" id="step2">[ ] Checking SSL certificate...</div>
+      <div class="loading-step" id="step3">[ ] Inspecting HTTP security headers...</div>
+      <div class="loading-step" id="step4">[ ] Scanning page content for threats...</div>
+      <div class="loading-step" id="step5">[ ] Calculating risk score...</div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="results" id="results">
+
+    <!-- Scanned URL -->
+    <div class="scanned-url" id="scannedUrl">
+      <span class="url-label">Target</span>
+      <span id="scannedUrlText"></span>
+    </div>
+
+    <!-- Risk Score Card -->
+    <div class="risk-card" id="riskCard">
+      <div class="risk-badge" id="riskBadge">—</div>
+
+      <div class="meter-wrap">
+        <div style="position:relative; width:200px; height:200px;">
+          <svg class="meter-svg" width="200" height="200" viewBox="0 0 200 200">
+            <circle class="meter-bg" cx="100" cy="100" r="85"/>
+            <circle class="meter-fill" id="meterFill" cx="100" cy="100" r="85"
+              stroke-dasharray="534"
+              stroke-dashoffset="534"
+            />
+          </svg>
+          <div class="meter-center">
+            <div class="score-number" id="scoreNumber">0%</div>
+            <div class="score-label">Risk Score</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="risk-description" id="riskDescription"></div>
+    </div>
+
+    <!-- Module Scores -->
+    <div class="module-grid" id="moduleGrid"></div>
+
+    <!-- All Findings -->
+    <div class="findings-card">
+      <div class="findings-header">
+        <span class="findings-title">Detailed Findings</span>
+        <div class="severity-pills" id="severityPills"></div>
+      </div>
+      <div id="findingsList"></div>
+    </div>
+
+  </div>
+
+  <footer>
+    PhishGuard v1.0 &nbsp;·&nbsp; Built for educational purposes &nbsp;·&nbsp;
+    Always verify suspicious URLs before visiting
+  </footer>
+</div>
+
+<script>
+  const circumference = 2 * Math.PI * 85; // ~534
+
+  function scoreColor(score) {
+    if (score >= 80) return 'var(--critical)';
+    if (score >= 60) return 'var(--high)';
+    if (score >= 40) return 'var(--medium)';
+    if (score >= 20) return 'var(--low)';
+    return 'var(--safe)';
+  }
+
+  function riskClass(level) {
+    return {
+      'Critical': 'critical', 'High': 'high', 'Medium': 'medium',
+      'Low': 'low', 'Safe': 'safe'
+    }[level] || 'info';
+  }
+
+  function animateCounter(el, target, suffix = '%') {
+    let current = 0;
+    const step = target / 60;
+    const timer = setInterval(() => {
+      current = Math.min(current + step, target);
+      el.textContent = Math.round(current) + suffix;
+      if (current >= target) clearInterval(timer);
+    }, 16);
+  }
+
+  function animateSteps() {
+    const steps = ['step1','step2','step3','step4','step5'];
+    steps.forEach(id => {
+      document.getElementById(id).className = 'loading-step';
+      document.getElementById(id).textContent =
+        document.getElementById(id).textContent.replace(/\[.\]/, '[ ]');
+    });
+    steps.forEach((id, i) => {
+      setTimeout(() => {
+        const el = document.getElementById(id);
+        el.className = 'loading-step active';
+        el.textContent = el.textContent.replace('[ ]', '[>]');
+        if (i > 0) {
+          const prev = document.getElementById(steps[i-1]);
+          prev.className = 'loading-step done';
+          prev.textContent = prev.textContent.replace('[>]', '[✓]');
+        }
+      }, i * 800);
+    });
+  }
+
+  async function startScan() {
+    const url = document.getElementById('urlInput').value.trim();
+    if (!url) return;
+
+    // Reset UI
+    document.getElementById('errorCard').className = 'error-card';
+    document.getElementById('results').className = 'results';
+    document.getElementById('loadingCard').className = 'loading active';
+    document.getElementById('scanBtn').disabled = true;
+
+    animateSteps();
+
+    try {
+      const res = await fetch('/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+
+      const data = await res.json();
+
+      document.getElementById('loadingCard').className = 'loading';
+
+      if (data.error) {
+        document.getElementById('errorCard').textContent = '⚠ ' + data.error;
+        document.getElementById('errorCard').className = 'error-card active';
+        document.getElementById('scanBtn').disabled = false;
+        return;
+      }
+
+      renderResults(data);
+
+    } catch (err) {
+      document.getElementById('loadingCard').className = 'loading';
+      document.getElementById('errorCard').textContent = '⚠ Could not connect to PhishGuard server. Make sure app.py is running.';
+      document.getElementById('errorCard').className = 'error-card active';
+    }
+
+    document.getElementById('scanBtn').disabled = false;
+  }
+
+  function renderResults(data) {
+    const rc = riskClass(data.risk_level);
+    const color = scoreColor(data.final_score);
+
+    // URL
+    document.getElementById('scannedUrlText').textContent = data.url;
+
+    // Risk badge
+    const badge = document.getElementById('riskBadge');
+    badge.textContent = data.risk_icon + ' ' + data.risk_level + ' Risk';
+    badge.className = 'risk-badge badge-' + rc;
+
+    // Meter animation
+    const fill = document.getElementById('meterFill');
+    const offset = circumference - (data.final_score / 100) * circumference;
+    fill.style.stroke = color;
+    setTimeout(() => { fill.style.strokeDashoffset = offset; }, 100);
+
+    // Score number
+    const scoreEl = document.getElementById('scoreNumber');
+    scoreEl.style.color = color;
+    animateCounter(scoreEl, data.final_score);
+
+    // Description
+    document.getElementById('riskDescription').textContent = data.risk_description;
+
+    // Module scores
+    const moduleGrid = document.getElementById('moduleGrid');
+    moduleGrid.innerHTML = '';
+    Object.entries(data.module_scores).forEach(([name, score]) => {
+      const c = scoreColor(score);
+      moduleGrid.innerHTML += `
+        <div class="module-card">
+          <div class="module-bar-wrap">
+            <div class="module-name">${name}</div>
+            <div class="module-bar-bg">
+              <div class="module-bar-fill" style="width:0%; background:${c}"
+                   data-target="${score}"></div>
+            </div>
+          </div>
+          <div class="module-score-text" style="color:${c}">${score}%</div>
+        </div>`;
+    });
+    // Animate bars
+    setTimeout(() => {
+      document.querySelectorAll('.module-bar-fill').forEach(bar => {
+        bar.style.width = bar.dataset.target + '%';
+      });
+    }, 200);
+
+    // Severity pills
+    const pills = document.getElementById('severityPills');
+    pills.innerHTML = '';
+    const sc = data.severity_counts;
+    const sevMap = [
+      ['critical','Critical'], ['high','High'], ['medium','Medium'],
+      ['low','Low'], ['safe','Safe']
+    ];
+    sevMap.forEach(([key, label]) => {
+      if (sc[key] > 0) {
+        pills.innerHTML += `<span class="pill pill-${key}">${sc[key]} ${label}</span>`;
+      }
+    });
+
+    // Findings list
+    const list = document.getElementById('findingsList');
+    list.innerHTML = '';
+    data.all_findings.forEach(f => {
+      if (f.severity === 'safe') return; // hide "safe" clutter in detailed list
+      list.innerHTML += `
+        <div class="finding-item">
+          <div class="sev-dot bg-${f.severity}"></div>
+          <div class="finding-content">
+            <div class="finding-check sev-${f.severity}">${f.check}</div>
+            <div class="finding-detail">${f.detail}</div>
+            <div class="finding-module">${f.module}</div>
+          </div>
+        </div>`;
+    });
+
+    if (list.innerHTML === '') {
+      list.innerHTML = `<div style="padding:2rem; text-align:center; color:var(--safe); font-family:var(--font);">
+        ✅ No threats detected — site appears safe.</div>`;
+    }
+
+    document.getElementById('results').className = 'results active';
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  // Enter key support
+  document.getElementById('urlInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') startScan();
+  });
+</script>
+</body>
+</html>
