@@ -112,13 +112,9 @@ PhishGuard/
 
 ---
 
-## Disclaimer
-
-This tool is built for **educational and authorized security research purposes only**.
-Do not use it against systems you do not own or have explicit permission to test.
 
 ---
 
 ## Author
 
-Made by [Your Name] · GitHub Project Submission
+Made by Niraj Sharma · GitHub Project Submission
